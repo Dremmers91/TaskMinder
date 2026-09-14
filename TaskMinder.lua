@@ -201,6 +201,10 @@ local function initializeDatabase()
     if type(TaskMinderDB.isWindowLocked) ~= "boolean" then
         TaskMinderDB.isWindowLocked = false
     end
+
+    if type(TaskMinderDB.minimapAngle) ~= "number" then
+        TaskMinderDB.minimapAngle = 225
+    end
 end
 
 local function getTask(taskID)
@@ -1118,9 +1122,75 @@ StaticPopupDialogs["TASKMINDER_CONFIRM_DELETE"] = {
     hideOnEscape = true,
 }
 
+local function positionMinimapButton(button)
+    local angle = math.rad(TaskMinderDB.minimapAngle)
+    local radius = (Minimap:GetWidth() / 2) + Theme.spacing.tiny
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+end
+
+local function createMinimapButton()
+    if TaskMinder.MinimapButton then
+        return TaskMinder.MinimapButton
+    end
+
+    local button = CreateFrame("Button", "TaskMinderMinimapButton", Minimap, "BackdropTemplate")
+    button:SetSize(28, 28)
+    button:SetFrameStrata("MEDIUM")
+    button:SetFrameLevel(Minimap:GetFrameLevel() + 8)
+    styleScrollArea(button)
+    button:HookScript("OnEnter", function(self)
+        self.tmBackground:SetColorTexture(unpack(Theme.colors.rowHover))
+    end)
+    button:HookScript("OnLeave", function(self)
+        self.tmBackground:SetColorTexture(unpack(Theme.colors.surface))
+    end)
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 4, -4)
+    icon:SetPoint("BOTTOMRIGHT", -4, 4)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnClick", function()
+        TaskMinder:ToggleMainWindow()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("TaskMinder")
+        GameTooltip:AddLine("Left-click to toggle the checklist.", 0.52, 0.58, 0.65)
+        GameTooltip:AddLine("Drag to reposition.", 0.52, 0.58, 0.65)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    button:SetScript("OnDragStart", function(self)
+        self:SetScript("OnUpdate", function()
+            local cursorX, cursorY = GetCursorPosition()
+            local scale = UIParent:GetEffectiveScale()
+            local minimapX, minimapY = Minimap:GetCenter()
+            cursorX = cursorX / scale
+            cursorY = cursorY / scale
+            TaskMinderDB.minimapAngle = math.deg(math.atan2(cursorY - minimapY, cursorX - minimapX))
+            positionMinimapButton(self)
+        end)
+    end)
+    button:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+    end)
+
+    positionMinimapButton(button)
+    TaskMinder.MinimapButton = button
+    return button
+end
+
 TaskMinder:SetScript("OnEvent", function(_, event, addonName)
     if event == "ADDON_LOADED" and addonName == ADDON_NAME then
         initializeDatabase()
+        createMinimapButton()
         TaskMinder:RegisterEvent("PLAYER_LOGIN")
         TaskMinder:UnregisterEvent("ADDON_LOADED")
     elseif event == "PLAYER_LOGIN" then

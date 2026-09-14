@@ -5,6 +5,8 @@ A lightweight WoW Retail addon for a character-specific recurring task checklist
 The addon exposes `TaskMinder:CreateTask`, `UpdateTask`, `DeleteTask`,
 `CompleteTask`, and `ReactivateTask`. Tasks are saved per character in
 `TaskMinderDB`. Use `/taskminder` or `/tm` to toggle the active-task checklist.
+The native minimap button provides the same toggle and can be dragged around the
+minimap; its position is also saved per character.
 Use the checklist gear button to add, edit, or delete all tasks, including
 completed tasks.
 
