@@ -1,4 +1,5 @@
 local ADDON_NAME = ...
+local MEDIA_PATH = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\"
 
 local TaskMinder = CreateFrame("Frame")
 _G.TaskMinder = TaskMinder
@@ -35,6 +36,11 @@ local Theme = {
         body = "SystemFont_Small",
         small = "SystemFont_Small",
         button = "SystemFont_Small",
+    },
+    icons = {
+        gear = MEDIA_PATH .. "cogs-3.png",
+        locked = MEDIA_PATH .. "dm_locked.png",
+        unlocked = MEDIA_PATH .. "dm_unlocked.png",
     },
     colors = {
         background = { 0.025, 0.031, 0.043, 0.96 },
@@ -157,66 +163,21 @@ local function styleFlatButton(button, tone)
     end)
 end
 
-local function createTitleBarIconPart(parent, width, height, point, xOffset, yOffset, color)
-    local part = parent:CreateTexture(nil, "ARTWORK")
-    part:SetSize(width, height)
-    part:SetPoint(point, parent, point, xOffset or 0, yOffset or 0)
-    part:SetColorTexture(unpack(color))
-    return part
-end
-
-local function styleTitleBarIcon(button, iconType)
-    local icon = CreateFrame("Frame", nil, button)
-    icon:SetSize(16, 16)
+-- Icon artwork from EllesmereUI by EllesmereGaming:
+-- https://github.com/EllesmereGaming/EllesmereUI
+local function styleTitleBarIcon(button, texturePath, width, height)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(width, height)
     icon:SetPoint("CENTER")
-    icon.tintParts = {}
-
-    function icon:SetTint(color)
-        for _, part in ipairs(self.tintParts) do
-            part:SetColorTexture(unpack(color))
-        end
-    end
-
-    if iconType == "gear" then
-        -- Neutral outlined controls intentionally remain independent from the
-        -- character-class accent used by task status and window chrome.
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 10, 10, "CENTER", 0, 0, Theme.colors.icon))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 2, "TOP", 0, 0, Theme.colors.icon))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 2, "BOTTOM", 0, 0, Theme.colors.icon))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 2, 4, "LEFT", 0, 0, Theme.colors.icon))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 2, 4, "RIGHT", 0, 0, Theme.colors.icon))
-        createTitleBarIconPart(icon, 6, 6, "CENTER", 0, 0, Theme.colors.surface)
-    else
-        local shackleTop = createTitleBarIconPart(icon, 8, 2, "TOP", 0, 0, Theme.colors.icon)
-        local shackleLeft = createTitleBarIconPart(icon, 2, 6, "TOPLEFT", 2, -1, Theme.colors.icon)
-        local shackleRight = createTitleBarIconPart(icon, 2, 6, "TOPRIGHT", -2, -1, Theme.colors.icon)
-        table.insert(icon.tintParts, shackleTop)
-        table.insert(icon.tintParts, shackleLeft)
-        table.insert(icon.tintParts, shackleRight)
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 12, 8, "BOTTOM", 0, 0, Theme.colors.icon))
-        createTitleBarIconPart(icon, 2, 3, "BOTTOM", 0, 2, Theme.colors.surface)
-
-        function icon:SetLocked(isLocked)
-            shackleTop:ClearAllPoints()
-            shackleLeft:ClearAllPoints()
-            if isLocked then
-                shackleTop:SetPoint("TOP", self, "TOP", 0, 0)
-                shackleLeft:SetPoint("TOPLEFT", self, "TOPLEFT", 2, -1)
-                shackleRight:Show()
-            else
-                shackleTop:SetPoint("TOP", self, "TOP", 3, 0)
-                shackleLeft:SetPoint("TOPLEFT", self, "TOPLEFT", 5, -1)
-                shackleRight:Hide()
-            end
-        end
-    end
-
+    icon:SetTexture(texturePath)
+    icon:SetDesaturated(true)
+    icon:SetVertexColor(unpack(Theme.colors.icon))
     button.tmIcon = icon
     button:HookScript("OnEnter", function(self)
-        self.tmIcon:SetTint(Theme.colors.iconHover)
+        self.tmIcon:SetVertexColor(unpack(Theme.colors.iconHover))
     end)
     button:HookScript("OnLeave", function(self)
-        self.tmIcon:SetTint(Theme.colors.icon)
+        self.tmIcon:SetVertexColor(unpack(Theme.colors.icon))
     end)
 end
 
@@ -632,7 +593,7 @@ local function createMainWindow()
     lockButton:SetText("")
     styleFlatButton(lockButton)
     styleTransparentTitleBarButton(lockButton)
-    styleTitleBarIcon(lockButton, "lock")
+    styleTitleBarIcon(lockButton, Theme.icons.unlocked, 12, 16)
 
     local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     gearButton:SetSize(28, 22)
@@ -640,13 +601,13 @@ local function createMainWindow()
     gearButton:SetText("")
     styleFlatButton(gearButton)
     styleTransparentTitleBarButton(gearButton)
-    styleTitleBarIcon(gearButton, "gear")
+    styleTitleBarIcon(gearButton, Theme.icons.gear, 16, 16)
     gearButton:SetScript("OnClick", function()
         TaskMinder:ToggleManageWindow()
     end)
 
     local function updateLockButton()
-        lockButton.tmIcon:SetLocked(TaskMinderDB.isWindowLocked)
+        lockButton.tmIcon:SetTexture(TaskMinderDB.isWindowLocked and Theme.icons.locked or Theme.icons.unlocked)
         if TaskMinderDB.isWindowLocked then
             resizeGrip:Hide()
         else
