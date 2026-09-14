@@ -155,18 +155,66 @@ local function styleFlatButton(button, tone)
     end)
 end
 
-local function styleTitleBarIcon(button, atlas)
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(15, 15)
+local function createTitleBarIconPart(parent, width, height, point, xOffset, yOffset, color)
+    local part = parent:CreateTexture(nil, "ARTWORK")
+    part:SetSize(width, height)
+    part:SetPoint(point, parent, point, xOffset or 0, yOffset or 0)
+    part:SetColorTexture(unpack(color))
+    return part
+end
+
+local function styleTitleBarIcon(button, iconType)
+    local icon = CreateFrame("Frame", nil, button)
+    icon:SetSize(16, 16)
     icon:SetPoint("CENTER")
-    icon:SetAtlas(atlas)
-    icon:SetVertexColor(unpack(Theme.colors.accentMuted))
+    icon.tintParts = {}
+
+    function icon:SetTint(color)
+        for _, part in ipairs(self.tintParts) do
+            part:SetColorTexture(unpack(color))
+        end
+    end
+
+    if iconType == "gear" then
+        -- A compact cog assembled from the shared UI texture keeps the icon
+        -- crisp without relying on client-specific texture atlas names.
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 8, 8, "CENTER", 0, 0, Theme.colors.accentMuted))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 3, "TOP", 0, 1, Theme.colors.accentMuted))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 3, "BOTTOM", 0, -1, Theme.colors.accentMuted))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 3, 4, "LEFT", 1, 0, Theme.colors.accentMuted))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 3, 4, "RIGHT", -1, 0, Theme.colors.accentMuted))
+        createTitleBarIconPart(icon, 4, 4, "CENTER", 0, 0, Theme.colors.surface)
+    else
+        local shackleTop = createTitleBarIconPart(icon, 8, 2, "TOP", 0, 0, Theme.colors.accentMuted)
+        local shackleLeft = createTitleBarIconPart(icon, 2, 6, "TOPLEFT", 2, -1, Theme.colors.accentMuted)
+        local shackleRight = createTitleBarIconPart(icon, 2, 6, "TOPRIGHT", -2, -1, Theme.colors.accentMuted)
+        table.insert(icon.tintParts, shackleTop)
+        table.insert(icon.tintParts, shackleLeft)
+        table.insert(icon.tintParts, shackleRight)
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 12, 8, "BOTTOM", 0, 0, Theme.colors.accentMuted))
+        createTitleBarIconPart(icon, 2, 3, "BOTTOM", 0, 2, Theme.colors.surface)
+
+        function icon:SetLocked(isLocked)
+            shackleTop:ClearAllPoints()
+            shackleLeft:ClearAllPoints()
+            if isLocked then
+                shackleTop:SetPoint("TOP", self, "TOP", 0, 0)
+                shackleLeft:SetPoint("TOPLEFT", self, "TOPLEFT", 2, -1)
+                shackleRight:Show()
+            else
+                shackleTop:SetPoint("TOP", self, "TOP", 3, 0)
+                shackleLeft:SetPoint("TOPLEFT", self, "TOPLEFT", 5, -1)
+                shackleRight:Hide()
+            end
+        end
+    end
+
     button.tmIcon = icon
     button:HookScript("OnEnter", function(self)
-        self.tmIcon:SetVertexColor(unpack(Theme.colors.accent))
+        self.tmIcon:SetTint(Theme.colors.accent)
     end)
     button:HookScript("OnLeave", function(self)
-        self.tmIcon:SetVertexColor(unpack(Theme.colors.accentMuted))
+        self.tmIcon:SetTint(Theme.colors.accentMuted)
     end)
 end
 
@@ -235,6 +283,10 @@ local function initializeDatabase()
 
     if type(TaskMinderDB.isWindowLocked) ~= "boolean" then
         TaskMinderDB.isWindowLocked = false
+    end
+
+    if type(TaskMinderDB.isMainWindowShown) ~= "boolean" then
+        TaskMinderDB.isMainWindowShown = true
     end
 
     if type(TaskMinderDB.minimapAngle) ~= "number" then
@@ -551,6 +603,7 @@ local function createMainWindow()
     closeButton:SetText("X")
     styleFlatButton(closeButton, "danger")
     closeButton:SetScript("OnClick", function()
+        TaskMinderDB.isMainWindowShown = false
         frame:Hide()
     end)
 
@@ -559,20 +612,20 @@ local function createMainWindow()
     lockButton:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
     lockButton:SetText("")
     styleFlatButton(lockButton)
-    styleTitleBarIcon(lockButton, "common-icon-unlock")
+    styleTitleBarIcon(lockButton, "lock")
 
     local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     gearButton:SetSize(28, 22)
     gearButton:SetPoint("RIGHT", lockButton, "LEFT", -4, 0)
     gearButton:SetText("")
     styleFlatButton(gearButton)
-    styleTitleBarIcon(gearButton, "common-icon-gear")
+    styleTitleBarIcon(gearButton, "gear")
     gearButton:SetScript("OnClick", function()
         TaskMinder:ToggleManageWindow()
     end)
 
     local function updateLockButton()
-        lockButton.tmIcon:SetAtlas(TaskMinderDB.isWindowLocked and "common-icon-lock" or "common-icon-unlock")
+        lockButton.tmIcon:SetLocked(TaskMinderDB.isWindowLocked)
         if TaskMinderDB.isWindowLocked then
             resizeGrip:Hide()
         else
@@ -767,8 +820,10 @@ end
 function TaskMinder:ToggleMainWindow()
     local frame = createMainWindow()
     if frame:IsShown() then
+        TaskMinderDB.isMainWindowShown = false
         frame:Hide()
     else
+        TaskMinderDB.isMainWindowShown = true
         frame:Show()
     end
 end
@@ -1241,6 +1296,9 @@ TaskMinder:SetScript("OnEvent", function(_, event, addonName)
     elseif event == "PLAYER_LOGIN" then
         applyClassAccentColor()
         TaskMinder:RefreshExpiredTasks()
+        if TaskMinderDB.isMainWindowShown then
+            createMainWindow():Show()
+        end
         if not TaskMinder.resetTicker then
             TaskMinder.resetTicker = C_Timer.NewTicker(60, function()
                 local nextResetTimestamp = TaskMinder.nextPendingResetTimestamp
