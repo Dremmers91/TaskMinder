@@ -44,6 +44,8 @@ local Theme = {
         border = { 0.20, 0.24, 0.29, 0.9 },
         accent = { 0.22, 0.78, 0.73, 1.0 },
         accentMuted = { 0.16, 0.52, 0.50, 1.0 },
+        icon = { 0.58, 0.61, 0.66, 1.0 },
+        iconHover = { 0.82, 0.85, 0.89, 1.0 },
         text = { 0.90, 0.93, 0.95, 1.0 },
         muted = { 0.52, 0.58, 0.65, 1.0 },
         completed = { 0.39, 0.44, 0.50, 1.0 },
@@ -176,22 +178,22 @@ local function styleTitleBarIcon(button, iconType)
     end
 
     if iconType == "gear" then
-        -- A compact cog assembled from the shared UI texture keeps the icon
-        -- crisp without relying on client-specific texture atlas names.
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 8, 8, "CENTER", 0, 0, Theme.colors.accentMuted))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 3, "TOP", 0, 1, Theme.colors.accentMuted))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 3, "BOTTOM", 0, -1, Theme.colors.accentMuted))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 3, 4, "LEFT", 1, 0, Theme.colors.accentMuted))
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 3, 4, "RIGHT", -1, 0, Theme.colors.accentMuted))
-        createTitleBarIconPart(icon, 4, 4, "CENTER", 0, 0, Theme.colors.surface)
+        -- Neutral outlined controls intentionally remain independent from the
+        -- character-class accent used by task status and window chrome.
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 10, 10, "CENTER", 0, 0, Theme.colors.icon))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 2, "TOP", 0, 0, Theme.colors.icon))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 4, 2, "BOTTOM", 0, 0, Theme.colors.icon))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 2, 4, "LEFT", 0, 0, Theme.colors.icon))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 2, 4, "RIGHT", 0, 0, Theme.colors.icon))
+        createTitleBarIconPart(icon, 6, 6, "CENTER", 0, 0, Theme.colors.surface)
     else
-        local shackleTop = createTitleBarIconPart(icon, 8, 2, "TOP", 0, 0, Theme.colors.accentMuted)
-        local shackleLeft = createTitleBarIconPart(icon, 2, 6, "TOPLEFT", 2, -1, Theme.colors.accentMuted)
-        local shackleRight = createTitleBarIconPart(icon, 2, 6, "TOPRIGHT", -2, -1, Theme.colors.accentMuted)
+        local shackleTop = createTitleBarIconPart(icon, 8, 2, "TOP", 0, 0, Theme.colors.icon)
+        local shackleLeft = createTitleBarIconPart(icon, 2, 6, "TOPLEFT", 2, -1, Theme.colors.icon)
+        local shackleRight = createTitleBarIconPart(icon, 2, 6, "TOPRIGHT", -2, -1, Theme.colors.icon)
         table.insert(icon.tintParts, shackleTop)
         table.insert(icon.tintParts, shackleLeft)
         table.insert(icon.tintParts, shackleRight)
-        table.insert(icon.tintParts, createTitleBarIconPart(icon, 12, 8, "BOTTOM", 0, 0, Theme.colors.accentMuted))
+        table.insert(icon.tintParts, createTitleBarIconPart(icon, 12, 8, "BOTTOM", 0, 0, Theme.colors.icon))
         createTitleBarIconPart(icon, 2, 3, "BOTTOM", 0, 2, Theme.colors.surface)
 
         function icon:SetLocked(isLocked)
@@ -211,11 +213,27 @@ local function styleTitleBarIcon(button, iconType)
 
     button.tmIcon = icon
     button:HookScript("OnEnter", function(self)
-        self.tmIcon:SetTint(Theme.colors.accent)
+        self.tmIcon:SetTint(Theme.colors.iconHover)
     end)
     button:HookScript("OnLeave", function(self)
-        self.tmIcon:SetTint(Theme.colors.accentMuted)
+        self.tmIcon:SetTint(Theme.colors.icon)
     end)
+end
+
+local function styleTransparentTitleBarButton(button)
+    button.tmBackground:Hide()
+    for _, borderLine in ipairs(button.tmBorder) do
+        borderLine:Hide()
+    end
+    if button:GetFontString() then
+        setTextColor(button:GetFontString(), Theme.colors.icon)
+        button:HookScript("OnEnter", function(self)
+            setTextColor(self:GetFontString(), Theme.colors.iconHover)
+        end)
+        button:HookScript("OnLeave", function(self)
+            setTextColor(self:GetFontString(), Theme.colors.icon)
+        end)
+    end
 end
 
 local function styleRow(row)
@@ -602,6 +620,7 @@ local function createMainWindow()
     closeButton:SetPoint("TOPRIGHT", -22, -16)
     closeButton:SetText("X")
     styleFlatButton(closeButton, "danger")
+    styleTransparentTitleBarButton(closeButton)
     closeButton:SetScript("OnClick", function()
         TaskMinderDB.isMainWindowShown = false
         frame:Hide()
@@ -612,6 +631,7 @@ local function createMainWindow()
     lockButton:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
     lockButton:SetText("")
     styleFlatButton(lockButton)
+    styleTransparentTitleBarButton(lockButton)
     styleTitleBarIcon(lockButton, "lock")
 
     local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -619,6 +639,7 @@ local function createMainWindow()
     gearButton:SetPoint("RIGHT", lockButton, "LEFT", -4, 0)
     gearButton:SetText("")
     styleFlatButton(gearButton)
+    styleTransparentTitleBarButton(gearButton)
     styleTitleBarIcon(gearButton, "gear")
     gearButton:SetScript("OnClick", function()
         TaskMinder:ToggleManageWindow()
