@@ -1,0 +1,8 @@
+## Interface: 120000
+## Title: TaskMinder
+## Notes: A character-specific recurring task checklist.
+## Author: TaskMinder
+## Version: 0.1.0
+## SavedVariablesPerCharacter: TaskMinderDB
+
+TaskMinder.lua
