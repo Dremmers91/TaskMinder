@@ -110,12 +110,14 @@ local function addTitleAccent(frame)
 end
 
 local function styleFlatButton(button, tone)
-    button:SetNormalTexture(nil)
-    button:SetPushedTexture(nil)
-    button:SetHighlightTexture(nil)
     button:SetNormalFontObject(getThemeFont("button"))
     button:SetHighlightFontObject(getThemeFont("button"))
     button:SetDisabledFontObject(getThemeFont("button"))
+    for _, segment in ipairs({ button.Left, button.Middle, button.Right }) do
+        if segment then
+            segment:Hide()
+        end
+    end
     if button:GetFontString() then
         setTextColor(button:GetFontString(), Theme.colors.text)
     end
@@ -1211,5 +1213,8 @@ TaskMinder:RegisterEvent("ADDON_LOADED")
 SLASH_TASKMINDER1 = "/taskminder"
 SLASH_TASKMINDER2 = "/tm"
 SlashCmdList.TASKMINDER = function()
-    TaskMinder:ToggleMainWindow()
+    local succeeded, errorMessage = pcall(TaskMinder.ToggleMainWindow, TaskMinder)
+    if not succeeded then
+        print("|cffff5555TaskMinder error:|r " .. tostring(errorMessage))
+    end
 end
