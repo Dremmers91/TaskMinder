@@ -52,6 +52,24 @@ local Theme = {
 }
 TaskMinder.Theme = Theme
 
+-- Keep the addon accent in step with the current character without changing
+-- the neutral surfaces shared by the Minder UI.
+local function applyClassAccentColor()
+    local _, classFile = UnitClass("player")
+    local classColor = classFile and RAID_CLASS_COLORS[classFile]
+    if not classColor then
+        return
+    end
+
+    Theme.colors.accent = { classColor.r, classColor.g, classColor.b, 1.0 }
+    Theme.colors.accentMuted = {
+        classColor.r * 0.68,
+        classColor.g * 0.68,
+        classColor.b * 0.68,
+        1.0,
+    }
+end
+
 local function setTextColor(fontString, color)
     fontString:SetTextColor(color[1], color[2], color[3], color[4])
 end
@@ -497,7 +515,7 @@ local function createMainWindow()
 
     local titleBar = CreateFrame("Frame", nil, frame)
     titleBar:SetPoint("TOPLEFT", 16, -12)
-    titleBar:SetPoint("TOPRIGHT", -156, -12)
+    titleBar:SetPoint("TOPRIGHT", -122, -12)
     titleBar:SetHeight(32)
     titleBar:EnableMouse(true)
     titleBar:RegisterForDrag("LeftButton")
@@ -512,21 +530,6 @@ local function createMainWindow()
     end)
 
     local resizeGrip
-    local lockButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    lockButton:SetSize(28, 22)
-    lockButton:SetPoint("TOPRIGHT", -92, -16)
-    lockButton:SetText("")
-    styleFlatButton(lockButton)
-
-    local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    gearButton:SetSize(28, 22)
-    gearButton:SetPoint("RIGHT", lockButton, "LEFT", -4, 0)
-    gearButton:SetText("⚙")
-    styleFlatButton(gearButton)
-    gearButton:SetScript("OnClick", function()
-        TaskMinder:ToggleManageWindow()
-    end)
-
     local closeButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     closeButton:SetSize(28, 22)
     closeButton:SetPoint("TOPRIGHT", -22, -16)
@@ -534,6 +537,24 @@ local function createMainWindow()
     styleFlatButton(closeButton, "danger")
     closeButton:SetScript("OnClick", function()
         frame:Hide()
+    end)
+
+    local lockButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    lockButton:SetSize(28, 22)
+    lockButton:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
+    lockButton:SetText("")
+    styleFlatButton(lockButton)
+
+    local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    gearButton:SetSize(28, 22)
+    gearButton:SetPoint("RIGHT", lockButton, "LEFT", -4, 0)
+    gearButton:SetText("")
+    styleFlatButton(gearButton)
+    gearButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+    gearButton:SetPushedTexture("Interface\\Buttons\\UI-OptionsButton")
+    gearButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
+    gearButton:SetScript("OnClick", function()
+        TaskMinder:ToggleManageWindow()
     end)
 
     local function updateLockButton()
@@ -590,19 +611,28 @@ local function createMainWindow()
     TaskMinder.MainFrame = frame
 
     resizeGrip = CreateFrame("Button", nil, frame)
-    resizeGrip:SetSize(16, 16)
-    resizeGrip:SetPoint("BOTTOMRIGHT", -6, 6)
+    resizeGrip:SetSize(20, 20)
+    resizeGrip:SetPoint("BOTTOMRIGHT", -4, 4)
     resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     resizeGrip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
     resizeGrip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-    resizeGrip:SetScript("OnMouseDown", function()
+    resizeGrip:RegisterForDrag("LeftButton")
+    resizeGrip:SetScript("OnDragStart", function()
         if not TaskMinderDB.isWindowLocked then
             frame:StartSizing("BOTTOMRIGHT")
         end
     end)
-    resizeGrip:SetScript("OnMouseUp", function()
+    resizeGrip:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
         saveWindowPosition(frame)
+    end)
+    resizeGrip:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+        GameTooltip:SetText("Resize window")
+        GameTooltip:Show()
+    end)
+    resizeGrip:SetScript("OnLeave", function()
+        GameTooltip:Hide()
     end)
     frame.resizeGrip = resizeGrip
 
@@ -1192,10 +1222,12 @@ end
 TaskMinder:SetScript("OnEvent", function(_, event, addonName)
     if event == "ADDON_LOADED" and addonName == ADDON_NAME then
         initializeDatabase()
+        applyClassAccentColor()
         createMinimapButton()
         TaskMinder:RegisterEvent("PLAYER_LOGIN")
         TaskMinder:UnregisterEvent("ADDON_LOADED")
     elseif event == "PLAYER_LOGIN" then
+        applyClassAccentColor()
         TaskMinder:RefreshExpiredTasks()
         if not TaskMinder.resetTicker then
             TaskMinder.resetTicker = C_Timer.NewTicker(60, function()
