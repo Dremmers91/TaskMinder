@@ -155,6 +155,21 @@ local function styleFlatButton(button, tone)
     end)
 end
 
+local function styleTitleBarIcon(button, atlas)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(15, 15)
+    icon:SetPoint("CENTER")
+    icon:SetAtlas(atlas)
+    icon:SetVertexColor(unpack(Theme.colors.accentMuted))
+    button.tmIcon = icon
+    button:HookScript("OnEnter", function(self)
+        self.tmIcon:SetVertexColor(unpack(Theme.colors.accent))
+    end)
+    button:HookScript("OnLeave", function(self)
+        self.tmIcon:SetVertexColor(unpack(Theme.colors.accentMuted))
+    end)
+end
+
 local function styleRow(row)
     local background = row:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -544,23 +559,20 @@ local function createMainWindow()
     lockButton:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
     lockButton:SetText("")
     styleFlatButton(lockButton)
+    styleTitleBarIcon(lockButton, "common-icon-unlock")
 
     local gearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     gearButton:SetSize(28, 22)
     gearButton:SetPoint("RIGHT", lockButton, "LEFT", -4, 0)
     gearButton:SetText("")
     styleFlatButton(gearButton)
-    gearButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearButton:SetPushedTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
+    styleTitleBarIcon(gearButton, "common-icon-gear")
     gearButton:SetScript("OnClick", function()
         TaskMinder:ToggleManageWindow()
     end)
 
     local function updateLockButton()
-        local iconName = TaskMinderDB.isWindowLocked and "Locked" or "Unlocked"
-        lockButton:SetNormalTexture("Interface\\Buttons\\LockButton-" .. iconName .. "-Up")
-        lockButton:SetPushedTexture("Interface\\Buttons\\LockButton-" .. iconName .. "-Down")
+        lockButton.tmIcon:SetAtlas(TaskMinderDB.isWindowLocked and "common-icon-lock" or "common-icon-unlock")
         if TaskMinderDB.isWindowLocked then
             resizeGrip:Hide()
         else
